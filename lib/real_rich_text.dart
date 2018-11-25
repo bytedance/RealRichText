@@ -6,6 +6,39 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
+/// According to the related Flutter Issues(#2022) ,
+/// Inline-Image-In-Text is a long-time(2 years) missing feature since RichText(or the underlying Paragraph) does only support pure text.
+/// But we can solve this problem in a simple/tricky way:
+///
+/// 1. Regarde the images as a particular blank TextSpan,
+///   convert image's width and height to textspan's letterSpacing and fontSize.
+///   the origin paragraph will do the layout operation and leave the desired image space for us.
+/// 2. Override the paint function，
+///   calculate the right offset via the getOffsetForCaret() api to draw the image over the space.
+///
+/// The only thing you have to do is converting your origin text to a TextSpan/ImageSpan List first.
+///
+/// {@tool sample}
+///
+/// ```dart
+/// RealRichText([
+///            TextSpan(
+///              text: "showing a bigger image",
+///              style: TextStyle(color: Colors.black, fontSize: 14),
+///            ),
+///            ImageSpan(
+///              AssetImage("packages/real_rich_text/images/emoji_10.png"),
+///              width: 40,
+///              height: 40,
+///            ),
+///            TextSpan(
+///              text: "and seems working perfect……",
+///              style: TextStyle(color: Colors.black, fontSize: 14),
+///            ),
+///          ])
+/// ```
+/// {@end-tool}
+///
 class RealRichText extends Text {
   final List<TextSpan> textSpanList;
 
