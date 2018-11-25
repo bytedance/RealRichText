@@ -287,7 +287,7 @@ class _RealRichRenderParagraph extends RenderParagraph {
         // if image is not ready: wait for async ImageInfo
         if (textSpan._imageResolver._image == null) {
           textSpan._imageResolver.resolve(() {
-            if (owner != null) {
+            if (owner == null || !owner.debugDoingPaint) {
               markNeedsPaint();
             }
           });
