@@ -8,7 +8,7 @@ A Tricky Solution for Implementing **Inline-Image-In-Text** Feature in Flutter.
 
 According to the related Flutter Issues([#2022](https://github.com/flutter/flutter/issues/2022)) , Inline-Image-In-Text is a long-time(2 years) missing feature since RichText(or the underlying Paragraph) does only support pure text. But we can solve this problem in a simple/tricky way:
 
-1. Regarde the images as a particular blank TextSpan, convert image's width and height to textspan's letterSpacing and fontSize. the origin paragraph will do the layout operation and leave the desired image space for us.
+1. Regard the images as a particular blank TextSpan, convert image's width and height to textspan's letterSpacing and fontSize. the origin paragraph will do the layout operation and leave the desired image space for us.
 2. Override the paint function，calculate the right offset via the getOffsetForCaret() api to draw the image over the space.
 
 ## Usage
