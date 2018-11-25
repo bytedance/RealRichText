@@ -98,6 +98,6 @@ class _MyAppState extends State<MyApp> {
 
 Here is the Result:
 
-![demo](https://github.com/limengyun2008/RealRichText/blob/master/doc/example.png)
+![demo](https://github.com/limengyun2008/RealRichText/blob/master/doc/example.png =320x)
 
 
