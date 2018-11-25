@@ -14,6 +14,8 @@ According to the related Flutter Issues([#2022](https://github.com/flutter/flutt
 
 ## Usage
 
+The only thing you have to do is converting your origin text to a TextSpan/ImageSpan List first.
+
 ```Dart
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
