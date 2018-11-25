@@ -11,6 +11,8 @@ According to the related Flutter Issues([#2022](https://github.com/flutter/flutt
 1. Regard the images as a particular blank TextSpan, convert image's width and height to textspan's letterSpacing and fontSize. the origin paragraph will do the layout operation and leave the desired image space for us.
 2. Override the paint function，calculate the right offset via the getOffsetForCaret() api to draw the image over the space.
 
+For more details, please refer to the source code.
+
 ## Usage
 
 The only thing you have to do is converting your origin text to a TextSpan/ImageSpan List first.
