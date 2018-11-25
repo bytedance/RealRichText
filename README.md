@@ -98,6 +98,6 @@ class _MyAppState extends State<MyApp> {
 
 Here is the Result:
 
-![Loader SearchBar demo](https://thumbs.gfycat.com/HealthyAmbitiousImpala-max-14mb.gif)
+![demo](https://github.com/limengyun2008/RealRichText/blob/master/doc/example.png)
 
 
