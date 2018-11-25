@@ -1,6 +1,6 @@
 # RealRichText
 
-A Tricky Solution for Implementing Inline-Image-In-Text Feature in Flutter.
+A Tricky Solution for Implementing **Inline-Image-In-Text** Feature in Flutter.
 
 <img src="https://github.com/limengyun2008/RealRichText/blob/master/doc/example.png" width="320">
 
