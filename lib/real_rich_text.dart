@@ -112,46 +112,53 @@ class RealRichText extends Text {
 
 /// Since flutter engine does not support inline-image for now, we have to support this feature via a tricky solution:
 /// convert image to a particular TextSpan whose text always be \u200B(a zero-width-space).
-/// set letterSpacing to the required image width
-/// set fontSize to the required image height / 1.15
-///
+/// set letterSpacing by the required image width
+/// set fontSize by the required image height
 class ImageSpan extends TextSpan {
-  final double width;
-  final double height;
+  final double imageWidth;
+  final double imageHeight;
+  final EdgeInsets margin;
   final ImageProvider imageProvider;
-  final _ImageResolver _imageResolver;
+  final ImageResolver imageResolver;
   ImageSpan(
     this.imageProvider, {
-    this.width = 14.0,
-    this.height = 14.0,
+    this.imageWidth = 14.0,
+    this.imageHeight = 14.0,
+    this.margin,
     GestureRecognizer recognizer,
-  })  : _imageResolver = _ImageResolver(imageProvider),
+  })  : imageResolver = ImageResolver(imageProvider),
         super(
             style: TextStyle(
                 color: Colors.transparent,
-                letterSpacing: width,
+                letterSpacing:
+                    imageWidth + (margin == null ? 0 : margin.horizontal),
                 height: 1,
-                fontSize: height / 1.15),
+                fontSize: (imageHeight / 1.15) +
+                    (margin == null ? 0 : margin.vertical)),
             text: "\u200B",
             children: [],
             recognizer: recognizer);
 
   void updateImageConfiguration(BuildContext context) {
-    _imageResolver.updateImageConfiguration(context, width, height);
+    imageResolver.updateImageConfiguration(context, imageWidth, imageHeight);
   }
+
+  double get width => imageWidth + (margin == null ? 0 : margin.horizontal);
+
+  double get height => imageHeight + (margin == null ? 0 : margin.vertical);
 }
 
-typedef _ImageResolverListener = void Function();
+typedef ImageResolverListener = void Function();
 
-class _ImageResolver {
+class ImageResolver {
   final ImageProvider imageProvider;
 
   ImageStream _imageStream;
   ImageConfiguration _imageConfiguration;
-  ui.Image _image;
-  _ImageResolverListener _listener;
+  ui.Image image;
+  ImageResolverListener _listener;
 
-  _ImageResolver(this.imageProvider);
+  ImageResolver(this.imageProvider);
 
   /// set the ImageConfiguration from outside
   void updateImageConfiguration(
@@ -162,7 +169,7 @@ class _ImageResolver {
     );
   }
 
-  void resolve(_ImageResolverListener listener) {
+  void resolve(ImageResolverListener listener) {
     assert(_imageConfiguration != null);
 
     final ImageStream oldImageStream = _imageStream;
@@ -177,7 +184,7 @@ class _ImageResolver {
   }
 
   void _handleImageChanged(ImageInfo imageInfo, bool synchronousCall) {
-    _image = imageInfo.image;
+    image = imageInfo.image;
     _listener?.call();
   }
 
@@ -259,52 +266,8 @@ class _RealRichRenderParagraph extends RenderParagraph {
   void paint(PaintingContext context, Offset offset) {
     super.paint(context, offset);
 
-    final Canvas canvas = context.canvas;
-    final Rect bounds = offset & size;
-
-    debugPrint("_RealRichRenderParagraph offset=$offset bounds=$bounds");
-
-    canvas.save();
-    canvas.clipRect(bounds);
-
-    int textOffset = 0;
-    text.children.forEach((textSpan) {
-      if (textSpan is ImageSpan) {
-        // this is the top-center point of the ImageSpan
-        Offset offsetForCaret = getOffsetForCaret(
-          TextPosition(offset: textOffset),
-          bounds,
-        );
-        // this is the-top left point of the ImageSpan
-        Offset topLeftOffset = Offset(
-            offset.dx +
-                offsetForCaret.dx -
-                (textOffset == 0 ? 0 : textSpan.width / 2),
-            offset.dy + offsetForCaret.dy);
-        debugPrint(
-            "_RealRichRenderParagraph ImageSpan, textOffset = $textOffset, topLeftOffset=$topLeftOffset");
-
-        // if image is not ready: wait for async ImageInfo
-        if (textSpan._imageResolver._image == null) {
-          textSpan._imageResolver.resolve(() {
-            if (owner == null || !owner.debugDoingPaint) {
-              markNeedsPaint();
-            }
-          });
-          return;
-        }
-        // else: just paint it.
-        paintImage(
-          canvas: canvas,
-          rect: topLeftOffset & Size(textSpan.width, textSpan.height),
-          image: textSpan._imageResolver._image,
-          fit: BoxFit.scaleDown,
-        );
-      }
-      textOffset += textSpan.toPlainText().length;
-    });
-
-    canvas.restore();
+    // Here it is!
+    paintImageSpan(context, offset);
   }
 
   @override
@@ -312,7 +275,7 @@ class _RealRichRenderParagraph extends RenderParagraph {
     super.detach();
     text.children.forEach((textSpan) {
       if (textSpan is ImageSpan) {
-        textSpan._imageResolver.stopListening();
+        textSpan.imageResolver.stopListening();
       }
     });
   }
@@ -322,5 +285,64 @@ class _RealRichRenderParagraph extends RenderParagraph {
     super.performLayout();
 
     debugPrint("size = $size");
+  }
+
+  /// this method draws inline-image over blank text space.
+  void paintImageSpan(PaintingContext context, Offset offset) {
+    final Canvas canvas = context.canvas;
+    final Rect bounds = offset & size;
+
+    debugPrint("_RealRichRenderParagraph offset=$offset bounds=$bounds");
+
+    canvas.save();
+
+    int textOffset = 0;
+    text.children.forEach((textSpan) {
+      if (textSpan is ImageSpan) {
+        // this is the top-center point of the ImageSpan
+        Offset offsetForCaret = getOffsetForCaret(
+          TextPosition(offset: textOffset),
+          bounds,
+        );
+
+        // found this is a overflowed image. ignore it
+        if (textOffset != 0 &&
+            offsetForCaret.dx == 0 &&
+            offsetForCaret.dy == 0) {
+          return;
+        }
+
+        // this is the top-left point of the ImageSpan.
+        // Usually, offsetForCaret indicates the top-center offset
+        // except the first text which is always (0, 0)
+        Offset topLeftOffset = Offset(
+            offset.dx +
+                offsetForCaret.dx -
+                (textOffset == 0 ? 0 : textSpan.width / 2),
+            offset.dy + offsetForCaret.dy);
+        debugPrint(
+            "_RealRichRenderParagraph ImageSpan, textOffset = $textOffset, offsetForCaret=$offsetForCaret, topLeftOffset=$topLeftOffset");
+
+        // if image is not ready: wait for async ImageInfo
+        if (textSpan.imageResolver.image == null) {
+          textSpan.imageResolver.resolve(() {
+            if (owner == null || !owner.debugDoingPaint) {
+              markNeedsPaint();
+            }
+          });
+          return;
+        }
+        // else: just paint it. bottomCenter Alignment seems better...
+        paintImage(
+            canvas: canvas,
+            rect: topLeftOffset & Size(textSpan.width, textSpan.height),
+            image: textSpan.imageResolver.image,
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.center);
+      }
+      textOffset += textSpan.toPlainText().length;
+    });
+
+    canvas.restore();
   }
 }

@@ -49,14 +49,13 @@ class _MyAppState extends State<MyApp> {
             ),
             ImageSpan(
               AssetImage("packages/real_rich_text/images/emoji_9.png"),
-              width: 24,
-              height: 24,
+              imageWidth: 24,
+              imageHeight: 24,
             ),
-            ImageSpan(
-              AssetImage("packages/real_rich_text/images/emoji_10.png"),
-              width: 24,
-              height: 24,
-            ),
+            ImageSpan(AssetImage("packages/real_rich_text/images/emoji_10.png"),
+                imageWidth: 24,
+                imageHeight: 24,
+                margin: EdgeInsets.symmetric(horizontal: 10)),
             TextSpan(
               text: "哈哈哈",
               style: TextStyle(color: Colors.yellow, fontSize: 14),
@@ -84,11 +83,10 @@ class _MyAppState extends State<MyApp> {
               text: "showing a bigger image",
               style: TextStyle(color: Colors.black, fontSize: 14),
             ),
-            ImageSpan(
-              AssetImage("packages/real_rich_text/images/emoji_10.png"),
-              width: 40,
-              height: 40,
-            ),
+            ImageSpan(AssetImage("packages/real_rich_text/images/emoji_10.png"),
+                imageWidth: 24,
+                imageHeight: 24,
+                margin: EdgeInsets.symmetric(horizontal: 5)),
             TextSpan(
               text: "and seems working perfect……",
               style: TextStyle(color: Colors.black, fontSize: 14),
