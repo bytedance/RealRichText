@@ -148,7 +148,8 @@ class ImageSpan extends TextSpan {
   double get height => imageHeight + (margin == null ? 0 : margin.vertical);
 }
 
-typedef ImageResolverListener = void Function();
+typedef ImageResolverListener = void Function(
+    ImageInfo imageInfo, bool synchronousCall);
 
 class ImageResolver {
   final ImageProvider imageProvider;
@@ -185,7 +186,7 @@ class ImageResolver {
 
   void _handleImageChanged(ImageInfo imageInfo, bool synchronousCall) {
     image = imageInfo.image;
-    _listener?.call();
+    _listener?.call(imageInfo, synchronousCall);
   }
 
   void stopListening() {
@@ -297,7 +298,7 @@ class _RealRichRenderParagraph extends RenderParagraph {
     canvas.save();
 
     int textOffset = 0;
-    text.children.forEach((textSpan) {
+    for (TextSpan textSpan in text.children) {
       if (textSpan is ImageSpan) {
         // this is the top-center point of the ImageSpan
         Offset offsetForCaret = getOffsetForCaret(
@@ -325,12 +326,22 @@ class _RealRichRenderParagraph extends RenderParagraph {
 
         // if image is not ready: wait for async ImageInfo
         if (textSpan.imageResolver.image == null) {
-          textSpan.imageResolver.resolve(() {
-            if (owner == null || !owner.debugDoingPaint) {
-              markNeedsPaint();
+          textSpan.imageResolver.resolve((imageInfo, synchronousCall) {
+            if (synchronousCall) {
+              paintImage(
+                  canvas: canvas,
+                  rect: topLeftOffset & Size(textSpan.width, textSpan.height),
+                  image: textSpan.imageResolver.image,
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.center);
+            } else {
+              if (owner == null || !owner.debugDoingPaint) {
+                markNeedsPaint();
+              }
             }
           });
-          return;
+          textOffset += textSpan.toPlainText().length;
+          continue;
         }
         // else: just paint it. bottomCenter Alignment seems better...
         paintImage(
@@ -341,7 +352,7 @@ class _RealRichRenderParagraph extends RenderParagraph {
             alignment: Alignment.center);
       }
       textOffset += textSpan.toPlainText().length;
-    });
+    }
 
     canvas.restore();
   }
