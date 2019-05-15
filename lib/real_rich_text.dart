@@ -203,6 +203,12 @@ class ImageResolver {
     _listener?.call(imageInfo, synchronousCall);
   }
 
+  void addListening() {
+    if (this._listener != null) {
+      _imageStream?.addListener(_handleImageChanged);
+    }
+  }
+
   void stopListening() {
     _imageStream?.removeListener(_handleImageChanged);
   }
@@ -283,6 +289,16 @@ class _RealRichRenderParagraph extends RenderParagraph {
 
     // Here it is!
     paintImageSpan(context, offset);
+  }
+
+  @override
+  void attach(covariant Object owner) {
+    super.attach(owner);
+    text.children.forEach((textSpan) {
+      if (textSpan is ImageSpan) {
+        textSpan.imageResolver.addListening();
+      }
+    });
   }
 
   @override
