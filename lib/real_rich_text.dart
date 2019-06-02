@@ -63,6 +63,17 @@ class RealRichText extends Text {
             maxLines: maxLines,
             locale: locale);
 
+  List<TextSpan> extractAllNestedChildren(TextSpan textSpan) {
+    if (textSpan.children == null || textSpan.children.length == 0) {
+      return [textSpan];
+    }
+    List<TextSpan> childrenSpan = [];
+    textSpan.children.forEach((child) {
+      childrenSpan.addAll(extractAllNestedChildren(child));
+    });
+    return childrenSpan;
+  }
+
   @override
   Widget build(BuildContext context) {
     final DefaultTextStyle defaultTextStyle = DefaultTextStyle.of(context);
@@ -74,10 +85,13 @@ class RealRichText extends Text {
           .merge(const TextStyle(fontWeight: FontWeight.bold));
 
     TextSpan textSpan = TextSpan(
-      style: effectiveTextStyle,
-      text: "",
-      children: textSpanList,
-    );
+        style: effectiveTextStyle,
+        text: "",
+        children: extractAllNestedChildren(TextSpan(
+          style: effectiveTextStyle,
+          text: "",
+          children: textSpanList,
+        )));
 
     // pass the context to ImageSpan to create a ImageConfiguration
     textSpan.children.forEach((f) {
@@ -189,6 +203,12 @@ class ImageResolver {
     _listener?.call(imageInfo, synchronousCall);
   }
 
+  void addListening() {
+    if (this._listener != null) {
+      _imageStream?.addListener(_handleImageChanged);
+    }
+  }
+
   void stopListening() {
     _imageStream?.removeListener(_handleImageChanged);
   }
@@ -269,6 +289,16 @@ class _RealRichRenderParagraph extends RenderParagraph {
 
     // Here it is!
     paintImageSpan(context, offset);
+  }
+
+  @override
+  void attach(covariant Object owner) {
+    super.attach(owner);
+    text.children.forEach((textSpan) {
+      if (textSpan is ImageSpan) {
+        textSpan.imageResolver.addListening();
+      }
+    });
   }
 
   @override
