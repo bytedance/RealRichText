@@ -172,6 +172,7 @@ class ImageResolver {
   ImageConfiguration _imageConfiguration;
   ui.Image image;
   ImageResolverListener _listener;
+  ImageStreamListener _imageStreamListener;
 
   ImageResolver(this.imageProvider);
 
@@ -190,11 +191,13 @@ class ImageResolver {
     final ImageStream oldImageStream = _imageStream;
     _imageStream = imageProvider.resolve(_imageConfiguration);
     assert(_imageStream != null);
-
+    if (_imageStreamListener == null) {
+      _imageStreamListener = ImageStreamListener(_handleImageChanged);
+    }
     this._listener = listener;
     if (_imageStream.key != oldImageStream?.key) {
-      oldImageStream?.removeListener(_handleImageChanged);
-      _imageStream.addListener(_handleImageChanged);
+      oldImageStream?.removeListener(_imageStreamListener);
+      _imageStream.addListener(_imageStreamListener);
     }
   }
 
@@ -205,12 +208,12 @@ class ImageResolver {
 
   void addListening() {
     if (this._listener != null) {
-      _imageStream?.addListener(_handleImageChanged);
+      _imageStream?.addListener(_imageStreamListener);
     }
   }
 
   void stopListening() {
-    _imageStream?.removeListener(_handleImageChanged);
+    _imageStream?.removeListener(_imageStreamListener);
   }
 }
 
