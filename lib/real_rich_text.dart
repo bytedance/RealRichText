@@ -207,13 +207,15 @@ class ImageResolver {
   }
 
   void addListening() {
-    if (this._listener != null) {
+    if (this._listener != null && this._imageStreamListener != null) {
       _imageStream?.addListener(_imageStreamListener);
     }
   }
 
   void stopListening() {
-    _imageStream?.removeListener(_imageStreamListener);
+    if (this._imageStreamListener != null) {
+      _imageStream?.removeListener(_imageStreamListener);
+    }
   }
 }
 
@@ -338,6 +340,10 @@ class _RealRichRenderParagraph extends RenderParagraph {
           TextPosition(offset: textOffset),
           bounds,
         );
+
+        if (textOffset == 0) {
+          offsetForCaret = Offset(bounds.left, offsetForCaret.dy);
+        }
 
         // found this is a overflowed image. ignore it
         if (textOffset != 0 &&
