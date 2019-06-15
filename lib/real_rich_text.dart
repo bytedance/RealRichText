@@ -172,6 +172,7 @@ class ImageResolver {
   ImageConfiguration _imageConfiguration;
   ui.Image image;
   ImageResolverListener _listener;
+  ImageStreamListener _imageStreamListener;
 
   ImageResolver(this.imageProvider);
 
@@ -190,11 +191,13 @@ class ImageResolver {
     final ImageStream oldImageStream = _imageStream;
     _imageStream = imageProvider.resolve(_imageConfiguration);
     assert(_imageStream != null);
-
+    if (_imageStreamListener == null) {
+      _imageStreamListener = ImageStreamListener(_handleImageChanged);
+    }
     this._listener = listener;
     if (_imageStream.key != oldImageStream?.key) {
-      oldImageStream?.removeListener(_handleImageChanged);
-      _imageStream.addListener(_handleImageChanged);
+      oldImageStream?.removeListener(_imageStreamListener);
+      _imageStream.addListener(_imageStreamListener);
     }
   }
 
@@ -204,13 +207,15 @@ class ImageResolver {
   }
 
   void addListening() {
-    if (this._listener != null) {
-      _imageStream?.addListener(_handleImageChanged);
+    if (this._listener != null && this._imageStreamListener != null) {
+      _imageStream?.addListener(_imageStreamListener);
     }
   }
 
   void stopListening() {
-    _imageStream?.removeListener(_handleImageChanged);
+    if (this._imageStreamListener != null) {
+      _imageStream?.removeListener(_imageStreamListener);
+    }
   }
 }
 
@@ -335,6 +340,10 @@ class _RealRichRenderParagraph extends RenderParagraph {
           TextPosition(offset: textOffset),
           bounds,
         );
+
+        if (textOffset == 0) {
+          offsetForCaret = Offset(0, offsetForCaret.dy);
+        }
 
         // found this is a overflowed image. ignore it
         if (textOffset != 0 &&
