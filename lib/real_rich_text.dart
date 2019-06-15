@@ -342,7 +342,7 @@ class _RealRichRenderParagraph extends RenderParagraph {
         );
 
         if (textOffset == 0) {
-          offsetForCaret = Offset(bounds.left, offsetForCaret.dy);
+          offsetForCaret = Offset(0, offsetForCaret.dy);
         }
 
         // found this is a overflowed image. ignore it
