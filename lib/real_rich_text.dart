@@ -160,6 +160,18 @@ class ImageSpan extends TextSpan {
   double get width => imageWidth + (margin == null ? 0 : margin.horizontal);
 
   double get height => imageHeight + (margin == null ? 0 : margin.vertical);
+
+  @override
+  RenderComparison compareTo(covariant ImageSpan other) {
+    RenderComparison comparison = super.compareTo(other);
+    if (other.imageProvider != imageProvider ||
+        other.imageWidth != imageWidth ||
+        other.imageHeight != imageHeight ||
+        other.margin != margin) {
+      comparison = RenderComparison.layout;
+    }
+    return comparison;
+  }
 }
 
 typedef ImageResolverListener = void Function(
