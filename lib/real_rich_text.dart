@@ -193,8 +193,8 @@ class ImageResolver {
 
     this._listener = listener;
     if (_imageStream.key != oldImageStream?.key) {
-      oldImageStream?.removeListener(_handleImageChanged);
-      _imageStream.addListener(_handleImageChanged);
+      oldImageStream?.removeListener(ImageStreamListener(_handleImageChanged));
+      _imageStream.addListener(ImageStreamListener(_handleImageChanged));
     }
   }
 
@@ -205,12 +205,12 @@ class ImageResolver {
 
   void addListening() {
     if (this._listener != null) {
-      _imageStream?.addListener(_handleImageChanged);
+      _imageStream?.addListener(ImageStreamListener(_handleImageChanged));
     }
   }
 
   void stopListening() {
-    _imageStream?.removeListener(_handleImageChanged);
+    _imageStream?.removeListener(ImageStreamListener(_handleImageChanged));
   }
 }
 
@@ -219,7 +219,7 @@ class ImageResolver {
 ///
 /// No more special purpose.
 class _RichTextWrapper extends RichText {
-  const _RichTextWrapper({
+   _RichTextWrapper({
     Key key,
     @required TextSpan text,
     TextAlign textAlign = TextAlign.start,
