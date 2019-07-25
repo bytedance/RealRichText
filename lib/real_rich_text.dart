@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:ui' as ui show Codec, Image;
 
 import 'package:flutter/gestures.dart';
@@ -258,7 +259,21 @@ class _RichTextWrapper extends RichText {
       textScaleFactor: textScaleFactor,
       maxLines: maxLines,
       locale: locale ?? Localizations.localeOf(context, nullOk: true),
+      strutStyle: strutStyle
     );
+  }
+
+  @override
+  void updateRenderObject(BuildContext context, _RealRichRenderParagraph renderObject) {
+    super.updateRenderObject(context, renderObject);
+    renderObject.textPainter
+      ..text = renderObject.text
+      ..textAlign = renderObject.textAlign
+      ..textDirection = renderObject.textDirection
+      ..textScaleFactor = renderObject.textScaleFactor
+      ..maxLines = renderObject.maxLines
+      ..locale = renderObject.locale
+      ..strutStyle = renderObject.strutStyle;
   }
 }
 
@@ -271,8 +286,18 @@ class _RealRichRenderParagraph extends RenderParagraph {
       TextOverflow overflow,
       double textScaleFactor,
       int maxLines,
-      Locale locale})
-      : super(
+      Locale locale,
+      StrutStyle strutStyle})
+      : _textPainter = TextPainter(
+    text: text,
+    textAlign: textAlign,
+    textDirection: textDirection,
+    textScaleFactor: textScaleFactor,
+    maxLines: maxLines,
+    ellipsis: overflow == TextOverflow.ellipsis ? '\u2026' : null,
+    locale: locale,
+    strutStyle: strutStyle,
+  ), super(
           text,
           textAlign: textAlign,
           textDirection: textDirection,
@@ -281,7 +306,20 @@ class _RealRichRenderParagraph extends RenderParagraph {
           textScaleFactor: textScaleFactor,
           maxLines: maxLines,
           locale: locale,
-        );
+          strutStyle: strutStyle
+      );
+
+  TextPainter _textPainter;
+
+  TextPainter get textPainter => _textPainter;
+
+  set textPainter(TextPainter value) {
+    assert(value != null);
+    if (_textPainter == value)
+      return;
+    _textPainter = value;
+    markNeedsLayout();
+  }
 
   @override
   void paint(PaintingContext context, Offset offset) {
@@ -318,6 +356,83 @@ class _RealRichRenderParagraph extends RenderParagraph {
     debugPrint("size = $size");
   }
 
+  bool _isUtf16Surrogate(int value) {
+    return value & 0xF800 == 0xD800;
+  }
+
+  static const int _zwjUtf16 = 0x200d;
+
+
+  Rect _getRectFromDownstream(int offset, Rect caretPrototype) {
+    final String flattenedText = text.toPlainText();
+    // We cap the offset at the final index of the text.
+    final int nextCodeUnit = text.codeUnitAt(min(offset, flattenedText == null ? 0 : flattenedText.length - 1));
+    if (nextCodeUnit == null)
+      return null;
+    // Check for multi-code-unit glyphs such as emojis or zero width joiner
+    final bool needsSearch = _isUtf16Surrogate(nextCodeUnit) || nextCodeUnit == _zwjUtf16;
+    int graphemeClusterLength = needsSearch ? 2 : 1;
+    List<TextBox> boxes = <TextBox>[];
+    while (boxes.isEmpty && flattenedText != null) {
+      final int nextRuneOffset = offset + graphemeClusterLength;
+      boxes = _textPainter.getBoxesForSelection(TextSelection(baseOffset: offset, extentOffset: nextRuneOffset));
+      // When the range does not include a full cluster, no boxes will be returned.
+      if (boxes.isEmpty) {
+        // When we are at the end of the line, a non-surrogate position will
+        // return empty boxes. We break and try from upstream instead.
+        if (!needsSearch)
+          break; // Only perform one iteration if no search is required.
+        if (nextRuneOffset >= flattenedText.length << 1)
+          break; // Stop iterating when beyond the max length of the text.
+        // Multiply by two to log(n) time cover the entire text span. This allows
+        // faster discovery of very long clusters and reduces the possibility
+        // of certain large clusters taking much longer than others, which can
+        // cause jank.
+        graphemeClusterLength *= 2;
+        continue;
+      }
+      final TextBox box = boxes.last;
+      final double caretStart = box.start;
+      final double dx = box.direction == TextDirection.rtl ? caretStart - caretPrototype.width : caretStart;
+      return Rect.fromLTRB(min(dx, _textPainter.width), box.top, min(dx, _textPainter.width), box.bottom);
+    }
+    return null;
+  }
+
+  Offset get _emptyOffset {
+    assert(textAlign != null);
+    switch (textAlign) {
+      case TextAlign.left:
+        return Offset.zero;
+      case TextAlign.right:
+        return Offset(_textPainter.width, 0.0);
+      case TextAlign.center:
+        return Offset(_textPainter.width / 2.0, 0.0);
+      case TextAlign.justify:
+      case TextAlign.start:
+        assert(textDirection != null);
+        switch (textDirection) {
+          case TextDirection.rtl:
+            return Offset(_textPainter.width, 0.0);
+          case TextDirection.ltr:
+            return Offset.zero;
+        }
+        return null;
+      case TextAlign.end:
+        assert(textDirection != null);
+        switch (textDirection) {
+          case TextDirection.rtl:
+            return Offset.zero;
+          case TextDirection.ltr:
+            return Offset(_textPainter.width, 0.0);
+        }
+        return null;
+    }
+    return null;
+  }
+
+
+
   /// this method draws inline-image over blank text space.
   void paintImageSpan(PaintingContext context, Offset offset) {
     final Canvas canvas = context.canvas;
@@ -331,10 +446,12 @@ class _RealRichRenderParagraph extends RenderParagraph {
     for (TextSpan textSpan in text.children) {
       if (textSpan is ImageSpan) {
         // this is the top-center point of the ImageSpan
-        Offset offsetForCaret = getOffsetForCaret(
-          TextPosition(offset: textOffset),
-          bounds,
-        );
+        TextPosition position = TextPosition(offset: textOffset);
+        final bool widthMatters = softWrap || overflow == TextOverflow.ellipsis;
+        _textPainter.layout(minWidth: constraints.minWidth,
+            maxWidth: widthMatters ? constraints.maxWidth : double.infinity);
+        Rect rect = _getRectFromDownstream(position.offset, bounds);
+        Offset offsetForCaret = rect != null ? Offset(rect.left, rect.top) : _emptyOffset;
 
         // found this is a overflowed image. ignore it
         if (textOffset != 0 &&
