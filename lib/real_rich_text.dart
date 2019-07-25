@@ -262,6 +262,19 @@ class _RichTextWrapper extends RichText {
       strutStyle: strutStyle
     );
   }
+
+  @override
+  void updateRenderObject(BuildContext context, _RealRichRenderParagraph renderObject) {
+    super.updateRenderObject(context, renderObject);
+    renderObject.textPainter
+      ..text = renderObject.text
+      ..textAlign = renderObject.textAlign
+      ..textDirection = renderObject.textDirection
+      ..textScaleFactor = renderObject.textScaleFactor
+      ..maxLines = renderObject.maxLines
+      ..locale = renderObject.locale
+      ..strutStyle = renderObject.strutStyle;
+  }
 }
 
 /// paint the image on the top of those ImageSpan's blank space
@@ -296,8 +309,17 @@ class _RealRichRenderParagraph extends RenderParagraph {
           strutStyle: strutStyle
       );
 
-  final TextPainter _textPainter;
+  TextPainter _textPainter;
 
+  TextPainter get textPainter => _textPainter;
+
+  set textPainter(TextPainter value) {
+    assert(value != null);
+    if (_textPainter == value)
+      return;
+    _textPainter = value;
+    markNeedsLayout();
+  }
 
   @override
   void paint(PaintingContext context, Offset offset) {
